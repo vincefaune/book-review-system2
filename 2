@@ -1,0 +1,84 @@
+const express = require("express");
+const path = require("path");
+
+const app = express();
+const PORT = process.env.PORT || 
+app.use(express.json());
+
+let books = {
+  "978-3-16-148410-0": { 
+    title: "Node.js Basics", 
+    author: "John Doe", 
+    reviews: { "user1": "Great book!" } 
+  },
+  "978-1-23-456789-7": { 
+    title: "Learning JS", 
+    author: "Jane Smith", 
+    reviews: {} 
+  }
+};
+
+let users = [];
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.get("/books", (req, res) => res.json(books));
+
+app.get("/books/:isbn", (req, res) => {
+  const book = books[req.params.isbn];
+  res.json(book || { error: "Book not found" });
+});
+
+app.get("/books/author/:author", (req, res) => {
+  const filtered = Object.entries(books)
+    .filter(([isbn, book]) => book.author === req.params.author)
+    .map(([isbn, book]) => ({ isbn, ...book }));
+  res.json(filtered);
+});
+
+app.get("/books/title/:title", (req, res) => {
+  const filtered = Object.entries(books)
+    .filter(([isbn, book]) => book.title === req.params.title)
+    .map(([isbn, book]) => ({ isbn, ...book }));
+  res.json(filtered);
+});
+
+app.get("/books/:isbn/reviews", (req, res) => {
+  const book = books[req.params.isbn];
+  res.json(book ? book.reviews : { error: "Book not found" });
+});
+
+app.post("/register", (req, res) => {
+  const { username, password } = req.body;
+  if (users.find(u => u.username === username)) return res.json({ error: "User exists" });
+  users.push({ username, password });
+  res.json({ message: "User registered successfully" });
+});
+
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username && u.password === password);
+  res.json(user ? { message: "Login successful" } : { error: "Invalid credentials" });
+});
+
+app.post("/books/:isbn/review", (req, res) => {
+  const { username, review } = req.body;
+  const book = books[req.params.isbn];
+  if (!book) return res.json({ error: "Book not found" });
+  book.reviews[username] = review;
+  res.json({ message: "Review added/updated" });
+});
+
+app.delete("/books/:isbn/review", (req, res) => {
+  const { username } = req.body;
+  const book = books[req.params.isbn];
+  if (book && book.reviews[username]) {
+    delete book.reviews[username];
+    return res.json({ message: "Review deleted" });
+  }
+  res.json({ error: "Review not found" });
+});
+
+app.listen(PORT, () => console.log(`Server running at port ${PORT}`));
